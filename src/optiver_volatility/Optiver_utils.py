@@ -1,11 +1,5 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.model_selection import GroupKFold
-from sklearn.metrics import r2_score
 
 
 def rmspe(y_true, y_pred):
@@ -19,7 +13,7 @@ def return_calc(prices):
     return np.log(prices).diff()
 
 
-def baseline_pred(stock_id, time_inds):
+def baseline_pred(stock_id, time_inds, data_dir, train):
 
     book = pd.read_parquet(data_dir/"book_train.parquet"/f"stock_id={stock_id}")
     book = book[book["time_id"].isin(time_inds)].copy()
