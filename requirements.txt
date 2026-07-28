@@ -12,3 +12,5 @@ matplotlib
 seaborn
 pymc
 arviz
+lightgbm
+xgboost
