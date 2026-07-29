@@ -193,6 +193,35 @@ def run_nested_for_years(prices, years, verbose=True, **kwargs):
     return yearly_summary, results_full_by_year, results_mu0_by_year
 
 
+def run_nested_for_tickers(tickers, years, min_return_observations=10, verbose=True, **kwargs):
+    """Run `run_nested_for_year` for every (ticker, year) pair, pooling results into one
+    DataFrame with a `ticker` column. Skips pairs with too few return observations (e.g.
+    a ticker's IPO year)."""
+    rows = []
+    results_full_by_ticker_year = {}
+    results_mu0_by_ticker_year = {}
+    return_window = kwargs.get("return_window", RETURN_WINDOW)
+
+    for ticker in tickers:
+        prices = download_prices(ticker, min(years), max(years))
+        for year in years:
+            _, log_returns = get_year_returns(prices, year, return_window)
+            if len(log_returns) < min_return_observations:
+                if verbose:
+                    print(f"Skipping {ticker} {year}: {len(log_returns)} return observations")
+                continue
+            if verbose:
+                print(f"Running {ticker} {year}")
+            row, results_full, results_mu0 = run_nested_for_year(prices, year, **kwargs)
+            row["ticker"] = ticker
+            rows.append(row)
+            results_full_by_ticker_year[(ticker, year)] = results_full
+            results_mu0_by_ticker_year[(ticker, year)] = results_mu0
+
+    pooled_summary = pd.DataFrame(rows).sort_values(["ticker", "year"]).reset_index(drop=True)
+    return pooled_summary, results_full_by_ticker_year, results_mu0_by_ticker_year
+
+
 # ---------------------------------------------------------------------------
 # Plotting
 # ---------------------------------------------------------------------------
@@ -233,6 +262,32 @@ def plot_drift_volatility_evidence(yearly_summary, stock_name):
     axes[2].set_xlabel("year")
     axes[2].set_ylabel("logZ_full - logZ_mu0")
     axes[2].set_title("Evidence comparison")
+
+    fig.tight_layout()
+    return fig, axes
+
+
+def plot_bayes_factor_scatter_hist(pooled_summary):
+    """Scatter of the log Bayes factor (full vs. mu=0) by year, one dot per (ticker, year),
+    plus a pooled histogram of the same values across all stock-years."""
+    n_tickers = pooled_summary["ticker"].nunique()
+    bayes_factor = pooled_summary["log_bayes_factor_full_vs_mu0"]
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+
+    axes[0].scatter(pooled_summary["year"], bayes_factor, s=18, alpha=0.5)
+    axes[0].axhline(0, color="black", linestyle="--", linewidth=1)
+    axes[0].set_xlabel("year")
+    axes[0].set_ylabel("logZ_full - logZ_mu0")
+    axes[0].set_title(f"Bayes factor by year ({n_tickers} stocks, {len(pooled_summary)} stock-years)")
+    axes[0].grid(True, alpha=0.25)
+
+    axes[1].hist(bayes_factor, bins=40, alpha=0.75)
+    axes[1].axvline(0, color="black", linestyle="--", linewidth=1)
+    axes[1].set_xlabel("logZ_full - logZ_mu0")
+    axes[1].set_ylabel("count")
+    axes[1].set_title("Pooled distribution across stock-years")
+    axes[1].grid(True, alpha=0.25)
 
     fig.tight_layout()
     return fig, axes
