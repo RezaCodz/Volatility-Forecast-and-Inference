@@ -1,4 +1,4 @@
-# volatility-forcast-and-inference
+# Volatility-Forecast-and-Inference
 
 ## Setup
 ```bash
